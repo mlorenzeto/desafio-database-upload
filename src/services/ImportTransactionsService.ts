@@ -5,6 +5,7 @@ import fs from 'fs';
 import Category from '../models/Category';
 import Transaction from '../models/Transaction';
 import TransactionsRepository from '../repositories/TransactionsRepository';
+import AppError from '../errors/AppError';
 
 interface CSVTransaction {
   title: string;
@@ -79,6 +80,22 @@ class ImportTransactionsService {
         ),
       })),
     );
+
+    const existentBalance = await transactionsRepository.getBalance();
+
+    const incomeBalance = createdTransactions.reduce(
+      (accumulator, transaction) => {
+        accumulator[transaction.type] += Number(transaction.value);
+        return accumulator;
+      },
+      existentBalance,
+    );
+
+    const total = incomeBalance.income - incomeBalance.outcome;
+
+    if (total < 0) {
+      throw new AppError('You do not have enough balance');
+    }
 
     await transactionsRepository.save(createdTransactions);
 
